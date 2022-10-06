@@ -49,8 +49,6 @@ class JssEnv(gym.Env):
         self.instance_matrix = None # This is the instance matrix after permutation if permutation_mode is True
         self.original_instance_matrix = None    # This is the original instance matrix without permutation
 
-        self.jobs_length = None
-        self.original_jobs_length = None
         ############################################
         #   Permutation relevant properties: End
         ############################################
@@ -92,13 +90,13 @@ class JssEnv(gym.Env):
         # matrix which stores tuples of (machine, length of the job)
         self.original_instance_matrix = np.zeros((self.jobs, self.machines), dtype=(np.int, 2))
         # contains all the time to complete jobs
-        self.original_jobs_length = np.zeros(self.jobs, dtype=np.int)
+        jobs_length = np.zeros(self.jobs, dtype=np.int)
         self.max_time_op = loaded_instance.get_max_processing_time() # Check if the operation time is the max operation time
         self.sum_op = loaded_instance.get_horizon() # Sum of all operations
         
         # Get the summed processing time of each job
         for job in loaded_instance.jobs:
-            self.original_jobs_length[job.id] = job.get_horizon()
+            jobs_length[job.id] = job.get_horizon()
         
         # Populate the instance matrix with jobs and its (machine, time) tuples
         # instance_matrix[job][op][0 is machine, 1 is time] = (machine, time)
@@ -106,7 +104,7 @@ class JssEnv(gym.Env):
             for op in range(job.get_operation_count()):
                 self.original_instance_matrix[job.id][op] = job.get_operation_as_tuple(op) # (machine, operation time)
 
-        self.max_time_jobs = max(self.original_jobs_length)
+        self.max_time_jobs = max(jobs_length)
 
         '''
         instance_file = open(instance_path, 'r')
@@ -165,17 +163,11 @@ class JssEnv(gym.Env):
             -Time since IDLE: 0 if not available, time otherwise
             -Total IDLE time in the schedule
         '''
-        self.observation_space = gym.spaces.Dict({
-            "action_mask": gym.spaces.Box(0, 1, shape=(self.jobs + 1,)),
-            "real_obs": gym.spaces.Box(low=0.0, high=1.0, shape=(self.jobs, 7), dtype=np.float),
-        })
+        self.observation_space = gym.spaces.Box(low=0.0, high=1.0, shape=(self.jobs, 7), dtype=np.float)
 
     def _get_current_state_representation(self):
         self.state[:, 0] = self.legal_actions[:-1]
-        return {
-            "real_obs": self.state,
-            "action_mask": self.legal_actions,
-        }
+        return self.state
 
     def get_legal_actions(self):
         return self.legal_actions
@@ -185,18 +177,12 @@ class JssEnv(gym.Env):
         # together with the permutation matrix and permutation indices to repeat the process.
         self.instance_matrix, self.perm_matrix, self.perm_indices = permute_instance(self.original_instance_matrix)
 
-    def _permute_jobs_length(self):
-        self.jobs_length, _, _ = permute_instance(self.original_jobs_length)
-
     def reset(self):
 
         if self.permutation_mode:
             self._permute_instance_matrix()
-            self._permute_jobs_length()
-            self.jobs_length = np.copy(self.original_jobs_length)
         else:
             self.instance_matrix = np.copy(self.original_instance_matrix)
-            self.jobs_length = np.copy(self.original_jobs_length)
 
         self.current_time_step = 0
         self.next_time_step = list()
@@ -300,15 +286,15 @@ class JssEnv(gym.Env):
                             time_step += 1
 
     def step(self, action: int):
-        print("Stepping through the environment...")
-        print("Action taken in step function: ", action)
+        # print("Stepping through the environment...")
+        # print("Action taken in step function: ", action)
         reward = 0.0
-        print(f"self.jobs in the step function: {self.jobs}")
+        # print(f"self.jobs in the step function: {self.jobs}")
 
         # Taking the last job? Is that the no-op?
         if action == self.jobs:
 
-            print("The action is mapping to a job in the step function...")
+            # print("The action is mapping to a job in the step function...")
             self.nb_machine_legal = 0
             self.nb_legal_actions = 0
             for job in range(self.jobs):
@@ -325,7 +311,7 @@ class JssEnv(gym.Env):
             self._check_no_op()
             return self._get_current_state_representation(), scaled_reward, self._is_done(), {"makespan": self.current_time_step}
         else:
-            print("The action is not mapping to a job in the step function...")
+            # print("The action is not mapping to a job in the step function...")
             current_time_step_job = self.todo_time_step_job[action]
             machine_needed = self.needed_machine_jobs[action]
             time_needed = self.instance_matrix[action][current_time_step_job][1]
@@ -357,7 +343,7 @@ class JssEnv(gym.Env):
             # we then need to scale the reward
             scaled_reward = self._reward_scaler(reward)
             
-            print(f"Returning the next state from the step function...")
+            # print(f"Returning the next state from the step function...")
             return self._get_current_state_representation(), scaled_reward, self._is_done(), {"makespan": self.current_time_step}
 
     def _reward_scaler(self, reward):

@@ -138,7 +138,7 @@ def make_env(env_id, rank=0, seed=0, instance_name="taillard/ta01.txt", permutat
         if env_id == "jss-v1":
             print("Connecting ActionMasker and JobShopMonitor...\n")
             env = ActionMasker(env, mask_fn)
-            #env = JobShopMonitor(env=env, filename=monitor_log_path) # None means, no log file
+            env = JobShopMonitor(env=env, filename=monitor_log_path) # None means, no log file
             #env = VecMonitor(env, monitor_log_path) # None means, no log file
 
         return env
@@ -173,7 +173,7 @@ def permute_instance(instance, perm_indices=None):
 #  print(f"Item content of permuted instance type {permuted_instance[0][0]}")
 
   # Permuted_instance is a list of torch tensors which we do not want?
-  return permuted_instance, perm_matrix, perm_indices
+  return permuted_instance, perm_matrix.numpy(), perm_indices.numpy()
 
 def reverse_permuted_instance(permuted_instance, perm_matrix):
   '''
@@ -182,9 +182,9 @@ def reverse_permuted_instance(permuted_instance, perm_matrix):
   restore_indices = torch.Tensor(list(range(job_count))).view(job_count, 1)
   restore_indices = perm_matrix.mm(restore_indices).view(job_count).long()
   restored_instance = [ permuted_instance[i] for i in restore_indices]
-  print(f"Restore indices type {type(restore_indices)}")
-  print(f"Restore indices shape {restore_indices.shape}")
-  print(f"Restored instance type {type(restored_instance)}")
+  # print(f"Restore indices type {type(restore_indices)}")
+  # print(f"Restore indices shape {restore_indices.shape}")
+  # print(f"Restored instance type {type(restored_instance)}")
   return restored_instance
 
 
@@ -276,21 +276,23 @@ def evaluate_policy_with_makespan(  # noqa: C901
     while (episode_counts < episode_count_targets).any():
         if use_masking:
             action_masks = get_action_masks(env)
-            print(f"Starting prediction in the evaluate policy with makespan function...") 
+            # print(f"Starting prediction in the evaluate policy with makespan function...")
             actions, state = model.predict(
                 observations,
                 state=states,
                 deterministic=deterministic,
                 action_masks=action_masks,
             )
-            print("Prediction done")
+            # print("Prediction done")
         else:
             actions, states = model.predict(observations, state=states, deterministic=deterministic)
-        print(f"Starting the step function...")
+        # print(f"Starting the step function...")
+
         observations, rewards, dones, infos = env.step(actions)
-        print("Step function done")
+        # print("Step function done")
         current_rewards += rewards
         current_lengths += 1
+        print(current_lengths, actions)
         for i in range(n_envs):
             if episode_counts[i] < episode_count_targets[i]:
 

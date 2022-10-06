@@ -8,7 +8,7 @@ from stable_baselines3.common.callbacks import CallbackList, CheckpointCallback,
 from src.callbacks.SaveOnBestTrainingRewardCallback import SaveOnBestTrainingRewardCallback
 from src.callbacks.StopTrainingOnMaxEpisodes import StopTrainingOnMaxEpisodes
 from src.callbacks.TensorboardCallback import TensorboardCallback
-from src.utils import make_jobshop_env
+from src.utils import make_env
 from src.envs.JobShopEnv.envs.JssEnv import JssEnv
 from stable_baselines3.common import results_plotter
 from stable_baselines3.common.logger import configure
@@ -109,6 +109,7 @@ def plot_reward_per_episode(log_folder, title='Learning Curve'):
 #                   Create folders and loggers
 ###############################################################
 
+ENV_ID = 'jss-v1'
 log_dir = "logs/sb3_log/"
 models_dir = "models/jss/PPO"
 #tensorboard_log = "logs/tensorboard/"
@@ -122,7 +123,8 @@ new_logger = configure(log_dir, ["stdout", "csv", "tensorboard"])
 #                   Create the environment
 ###############################################################
 
-env = make_jobshop_env(rank=0, seed=1, instance_name="taillard/ta41.txt", monitor_log_path=log_dir)
+make_jobshop_env = make_env(ENV_ID, rank=0, seed=1, instance_name="taillard/ta41.txt", monitor_log_path=log_dir)
+env = make_jobshop_env()
 # required before you can step through the environment
 env.reset()
 
@@ -136,12 +138,11 @@ def create_model(model_name="MaskablePPO", policy="MlpPolicy", env=None, n_env=1
         # Create Callback
         stopTrainingOnMaxEpisodes_callback = StopTrainingOnMaxEpisodes(max_episodes = n_episodes, verbose=verbose)
         tensorboard_callback = TensorboardCallback()
-        saveOnBestTrainingReward_callback = SaveOnBestTrainingRewardCallback(check_freq=1000, log_dir=log_dir, model_dir=models_dir, verbose=verbose)
-        '''
-        eval_callback = EvalCallback(env, best_model_save_path='models/jss/PPO/best_model',
-                             log_path=log_dir, eval_freq=5,
-                             deterministic=False, render=False)
-        '''
+        saveOnBestTrainingReward_callback = SaveOnBestTrainingRewardCallback(check_freq=10000, log_dir=log_dir, model_dir=models_dir, verbose=verbose)
+
+        # eval_callback = EvalCallback(env, best_model_save_path='models/jss/PPO/best_model',
+        #                      log_path=log_dir, eval_freq=2000,
+        #                      deterministic=False, render=False)
         # Create the callback list
         callback = CallbackList([stopTrainingOnMaxEpisodes_callback, saveOnBestTrainingReward_callback, tensorboard_callback])
 
@@ -167,7 +168,7 @@ def create_model(model_name="MaskablePPO", policy="MlpPolicy", env=None, n_env=1
                      net_arch=[264])
 
         model = MaskablePPO(
-            policy='MultiInputPolicy', 
+            policy='MlpPolicy',
             env=env, 
             #clip_range=0.5653,
             #target_kl=0.08849,
@@ -191,7 +192,8 @@ fig = None
 
 TIMESTEPS = np.inf # Dirty hack to make it run forever
 for i in range(0, 1):
-    env = make_jobshop_env(rank=0, seed=i, instance_name="taillard/ta41.txt", monitor_log_path=log_dir + f"_PPO_{str(i)}_")
+    env_maker = make_env(ENV_ID, rank=0, seed=i, instance_name="taillard/ta41.txt", monitor_log_path=log_dir + f"_PPO_{str(i)}_")
+    env = env_maker()
     model, callback = create_model(
         model_name="MaskablePPO", 
         policy="MlpPolicy", 

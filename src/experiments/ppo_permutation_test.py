@@ -18,8 +18,8 @@ import pprint
 
 ENV_ID = 'jss-v1'
 INSTANCE_NAME = "taillard/ta41.txt"
-MODEL_PATH = "models/jss/PPO/best_model_not_tuned_25k.zip"
-PERMUTATION_MODE = False
+MODEL_PATH = "models/jss/PPO/best_model.zip"
+PERMUTATION_MODE = True
 N_EPISODES = 3000
 
 
